@@ -1,0 +1,53 @@
+#cloud-config
+
+timezone: Canada/Eastern
+apt_update: false
+hostname: manager1
+fqdn: manager1.lab.local
+manage_etc_hosts: true
+package_update: false
+ssh_pwauth: True
+
+groups:
+  - docker
+
+users:
+  - name: osu
+    gecos: osu
+    groups: sudo
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    # mkpasswd --method=SHA-512 --rounds=4096
+    #passwd: osu1
+    passwd: $6$m/ToT80gpHPZka$2EaO1TYTpEcDKwNe/wBP3jnINtGQxNv0c4AcsTTpKlihHC9I7r/yactnYZER6.yn0jRO8zP9oB8t.TlSz8atp.
+    lock-passwd: false
+
+write_files:
+  - path: /tmp/hosts
+    content: |
+        10.199.2.92 m0consul0
+        10.199.2.93 manager1
+        10.199.2.90 node0
+        10.199.2.91 node1
+
+runcmd:
+ - cat /tmp/hosts >> /etc/hosts
+ - "echo 'datasource_list: [ None ]' | sudo -s tee /etc/cloud/cloud.cfg.d/90_dpkg.cfg"
+ - "sudo dpkg-reconfigure -f noninteractive cloud-init"
+ - apt-get -y install chrony xfsprogs htop git
+ - ntpdate 0.debian.pool.ntp.org
+ - hwclock --systohc
+ - service chrony restart
+ - sudo usermod -aG docker osu
+ - apt-get update -y
+ - apt-get dist-upgrade -y
+ - apt-get -y install htop git
+ - curl -L https://github.com/docker/compose/releases/download/1.6.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
+ - chmod +x /usr/local/bin/docker-compose
+ - su - osu
+ - cd /home/osu
+ - wget -qO- https://get.docker.com/ | sh
+ - sudo echo 'DOCKER_OPTS="-H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock"' >> /etc/default/docker
+ - sudo service docker restart
+ - sleep 2 ; docker run -d -p 4000:4000 swarm manage -H :4000 --replication --advertise 10.199.2.93:4000 consul://10.199.2.92:8500
+ - echo "user_data finished" > /home/osu/user_data.finished

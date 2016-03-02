@@ -1,0 +1,11 @@
+   <interface type='bridge'>
+      <source bridge='ext'/>
+      <vlan>
+        <tag id='20'/>
+      </vlan>
+      <virtualport type='openvswitch'>
+      </virtualport>
+      <target dev='eth0-m0consul0'/>
+      <model type='virtio'/>
+      <alias name='net0'/>
+    </interface>
